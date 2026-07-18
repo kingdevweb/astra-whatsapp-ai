@@ -97,4 +97,5 @@ def run():
     import uvicorn
     uvicorn.run("app.main:app", host=settings.host, port=settings.port, reload=True)
 
-if __name__ == "__main__:": run()
+if __name__ == "__main__":
+    run()
