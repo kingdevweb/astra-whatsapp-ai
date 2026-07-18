@@ -10,6 +10,7 @@ async def get_weather(city: str, units: str = "metric") -> dict:
             loc = geo["results"][0]; lat, lon = loc["latitude"], loc["longitude"]
             w = (await c.get("https://api.open-meteo.com/v1/forecast", params={"latitude":lat,"longitude":lon,"current_weather":"true","timezone":"auto"})).json()
             cur = w.get("current_weather",{})
-            codes = {0:"Clear ☌️",1:"Mainly Clear 🌤",2:"Partly Cloudy ✅",3:"Overcast ☁️",45:"Foggy 🌱",51:"Drizzle 🌧",61:"Rain 🌧",71:"Snow ❄️",80:"Showers 🌦",95:"Thunderstorm ✈"}
-            return {"city":loc.get("name",city),"country":loc.get("country",""),"temperature":cur.get("temperature"),"condition":codes.get(cur.get("weathercode",0),"Unknown"),"unit":"°C" if units=="metric" else.°F"}
+            codes = {0:"Clear",1:"Mainly Clear",2:"Partly Cloudy",3:"Overcast",45:"Foggy",51:"Drizzle",61:"Rain",71:"Snow",80:"Showers",95:"Thunderstorm"}
+            unit_str = "C" if units == "metric" else "F"
+            return {"city":loc.get("name",city),"country":loc.get("country",""),"temperature":cur.get("temperature"),"condition":codes.get(cur.get("weathercode",0),"Unknown"),"unit":unit_str}
     except Exception as e: return {"error": str(e)}
