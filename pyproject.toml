@@ -1,3 +1,12 @@
 [project]
-name="astra-whatsapp-ai"
-version="0.1.0"
+name = "astra-whatsapp-ai"
+version = "2.0.0-ultra"
+description = "Ultra Premium AI-powered WhatsApp chatbot with 60+ modules"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "kingdevweb" }]
+keywords = ["whatsapp", "ai", "chatbot", "fastapi", "openai"]
+
+[project.scripts]
+astra = "app.main:run"
