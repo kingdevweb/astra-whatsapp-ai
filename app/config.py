@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     grok_api_key: str = ""
     openrouter_api_key: str = ""
     elevenlabs_api_key: str = ""
-    ai_default_model: str = "llama-3.1-70b-versatile"
+    ai_default_model: str = "llama-3.3-70b-versatile"
     # Green API (WhatsApp Business API)
     green_api_id_instance: str = ""
     green_api_token_instance: str = ""
