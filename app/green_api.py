@@ -25,7 +25,7 @@ class GreenAPIClient:
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(
-                    f"{self._base_url}/getStateInstance/{self.id_instance}",
+                    f"{self._base_url}/getStateInstance/{self.token_instance}",
                 )
                 data = resp.json()
                 self.is_connected = data.get("stateInstance") == "authorized"
@@ -44,7 +44,7 @@ class GreenAPIClient:
         try:
             async with httpx.AsyncClient(timeout=20) as client:
                 resp = await client.post(
-                    f"{self._base_url}/sendMessage/{self.id_instance}",
+                    f"{self._base_url}/sendMessage/{self.token_instance}",
                     json={"chatId": chat_id, "message": text},
                 )
                 data = resp.json()
@@ -64,7 +64,7 @@ class GreenAPIClient:
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
-                    f"{self._base_url}/sendFileByUrl/{self.id_instance}",
+                    f"{self._base_url}/sendFileByUrl/{self.token_instance}",
                     json={
                         "chatId": chat_id,
                         "urlFile": image_url,
@@ -84,7 +84,7 @@ class GreenAPIClient:
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
-                    f"{self._base_url}/sendFileByUrl/{self.id_instance}",
+                    f"{self._base_url}/sendFileByUrl/{self.token_instance}",
                     json={
                         "chatId": chat_id,
                         "urlFile": doc_url,
@@ -102,7 +102,7 @@ class GreenAPIClient:
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
-                    f"{self._base_url}/sendFileByUrl/{self.id_instance}",
+                    f"{self._base_url}/sendFileByUrl/{self.token_instance}",
                     json={
                         "chatId": chat_id,
                         "urlFile": audio_url,
@@ -129,7 +129,7 @@ class GreenAPIClient:
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.post(
-                    f"{self._base_url}/setSettings/{self.id_instance}",
+                    f"{self._base_url}/setSettings/{self.token_instance}",
                     json={"webhookUrl": webhook_url},
                 )
                 return resp.status_code == 200
