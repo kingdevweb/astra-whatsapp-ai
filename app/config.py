@@ -6,13 +6,14 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     loglevel: str = "INFO"
     openai_api_key: str = ""
+    groq_api_key: str = ""
     gemini_api_key: str = ""
     claude_api_key: str = ""
     deepseek_api_key: str = ""
     grok_api_key: str = ""
     openrouter_api_key: str = ""
     elevenlabs_api_key: str = ""
-    ai_default_model: str = "gpt-4o"
+    ai_default_model: str = "llama-3.1-70b-versatile"
     # Green API (WhatsApp Business API)
     green_api_id_instance: str = ""
     green_api_token_instance: str = ""
@@ -21,7 +22,7 @@ class Settings(BaseSettings):
     # WhatsApp Web (backup/failsafe)
     whatsapp_auth_type: str = "qr"
     whatsapp_pairing_code: str = ""
-    whatsapp_session_dir: str = "/.whatsapp_auth"
+    whatsapp_session_dir: str = "./.whatsapp_auth"
     # Database
     database_type: str = "sqlite"
     database_url: str = "sqlite:///astra.db"
