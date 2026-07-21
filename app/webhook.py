@@ -67,14 +67,14 @@ async def _handle_message(msg: dict) -> str:
     logger.info(f"Intent: {intent} | Text: {truncate(text, 100)}")
 
     if intent == "image":
-        prompt = text.replace("imaj", "").replace("foto", "").replace("image", "").strip()
+        prompt = text.replace("imaj", "").replace("foto", "").replace("image", "").replace("jenere", "").strip()
         result = await ai_image.generate(prompt)
         img_url = result.get("url", "")
         if img_url:
             caption = result.get("prompt_used", prompt)[:500]
             await green_api.send_image(chat_id, img_url, caption)
             return f"✨ Men imaj ou: {caption}"
-        return "M pa t ka jenere imaj la, eseye ankò."
+        return "⚠️ Jenere imaj bezwen OpenAI. Mwen ka ede w ake lòt bagay tou: eseye `rechèch [sijè]` oswa pale avè m!"
 
     elif intent == "search":
         query = text.replace("rechèch", "").replace("search", "").replace("google", "").strip()
@@ -96,7 +96,7 @@ async def _handle_message(msg: dict) -> str:
         return (
             f"🌤 *Meteyo {result.get('city','')}*\n"
             f"🌡 Tanperati: {result.get('temp','')}°\n"
-            f"💧 Imidite: {result.get('humidity','')}%\n"
+            f"💧 Imediti: {result.get('humidity','')}%\n"
             f"🌬 Van: {result.get('wind','')}\n"
             f"📋 {result.get('description','')}"
         )
@@ -110,7 +110,7 @@ async def _handle_message(msg: dict) -> str:
             txt = text.replace("tradwi", "").replace("translate", "").strip()
             target = "en"
         result = await translation.translate_text(txt, target)
-        return f"🌐 *Tradiksyon:*\n{result.get('translated','')}"
+        return f"🌐 *Tradiksyon:*\n\n{result.get('translated','')}"
 
     elif intent == "currency":
         return await currency.get_rates()
@@ -130,43 +130,42 @@ async def _handle_message(msg: dict) -> str:
 
     elif intent == "help":
         return (
-            "🤖 *Astra WhatsApp AI*\n\n"
-            "📝 *Chat* — pale avè m pou nenpòt kesyon\n"
+            "🤖 *Astra — Asistan AI sou WhatsApp*\n\n"
+            "💫 *Chat GPT-Style* — pale avè m pou nenpòt kesyon!\n"
             "🖼 *Imaj* — `foto [deskripsyon]`\n"
             "🔍 *Rechèch* — `rechèch [sijè]`\n"
             "🌤 *Meteyo* — `tan [vil]`\n"
             "🌐 *Tradiksyon* — `tradwi [tèks]|[lang]`\n"
-            "💰 *Lajan* — `lajan` oswa `to`\n"
+            "💰 *Lajan* — `to lajan`\n"
             "📰 *Nouvèl* — `nouvèl`\n"
-            "🗣 *TTS* — `vwa [tèks]`\n"
+            "🗣 *Vwa* — `vwa [tèks]`\n\n"
+            "✨ *www.astra-ai.com)"
         )
 
     else:
-        # Default: AI Chat
+        # Default: AI Chat (like ChatGPT!)
         reply = await ai_chat.chat_reply(text, chat_id)
-        return truncate(reply, 4000)
+        if reply:
+            return truncate(reply, 4000)
+        return "🤖 Désolé, je n'arrive pas à traiter ta demande. Reessaie!"
 
 
 @router.get("")
 async def health_check():
     """Simple health endpoint for webhook testing."""
-    return {"status": "ok", "service": "Astra WhatsApp AI + Green API"}
+    return {"status": "ok", "service": "Astra WhatsApp AI + Groq"}
 
 
 @router.post("")
 async def receive(request: Request):
     """Receive incoming webhook notifications from Green API."""
     try:
-        # Green API sends the full webhook body directly
         raw_body = await request.json()
-
-        # Green API webhook: { receiptId, body: { typeWebhook, ... } }
         webhook_body = raw_body.get("body", raw_body)
         webhook_type = webhook_body.get("typeWebhook", "")
 
         logger.info(f"Webhook received: {webhook_type}")
 
-        # Handle incoming message
         if webhook_type in ("incomingMessageReceived", "incomingMessage"):
             msg = _extract_message(webhook_body)
             if msg and msg.get("text"):
