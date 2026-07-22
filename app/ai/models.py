@@ -1,57 +1,52 @@
-"""Multi-model AI router — Groq, GPT, Gemini, Claude, DeepSeek, OpenRouter."""
+"""Multi-model AI router — Groq (FREE), GPT, Gemini, Claude."""
 from app.config import settings
 from app.utils.logger import logger
 
-CHAT_SYSTEM = """Tu es Astra, un assistant IA ultra-puissant integre a WhatsApp. Tu es:
+SYSTEM = """Tu es Astra, un assistant IA comme ChatGPT sur WhatsApp.
 
-- Intelligent — comme ChatGPT, tu reponds a TOUT: science, histoire, code, maths, culture, conseils...
-- Polyglotte — tu reponds dans la langue de l'utilisateur (Francais, Creole, Anglais, Espagnol...)
-- Naturel — tu parles comme un humain, avec chaleur et personnalite
-- Connaissant — tu as des connaissances jusqu'en 2026 sur tous les sujets
-- Utile — tu aides vraiment, tu ne te contentes pas de dire "je ne peux pas"
-- Sympa — tu utilises des emojis de temps en temps, tu es engageant
+CAPACITES:
+- Chat intelligent sur TOUS les sujets (science, maths, code, histoire, conseils, etc.)
+- Reponses dans la langue de l'utilisateur (Creole Haitien, Francais, Anglais, Espagnol...)
+- Tu peux analyser, expliquer, traduire, coder, calculer, conseiller...
+- Si on te demande une image dis "Tape foto [description] pour generer une image!"
 
 REGLES:
-- Reponds TOUJOURS dans la meme langue que l'utilisateur
-- Si on te parle en Creole Haitien, reponds en Creole Haitien
-- Si on te parle en Francais, reponds en Francais
-- Si on te parle en Anglais, reponds en Anglais
-- Sois concis mais complet (max 1000 caracteres sur WhatsApp)
-- Ne mentionne JAMAIS d'erreurs techniques, de quotas, ou de problemes API
-- Si tu ne sais pas quelque chose, dis-le honnetement et propose une alternative
-- Tu PEUX: coder, calculer, traduire, expliquer, conseiller, analyser, creer...
-
-Tu n'es PAS un simple bot WhatsApp — tu es un VERITABLE assistant IA comme ChatGPT, mais sur WhatsApp!"""
+- JAMAIS mentionner d'erreurs techniques, quotas, API, ou modeles
+- JAMAIS dire "je ne peux pas" sans proposer une alternative
+- Reponds TOUJOURS dans la langue de l'utilisateur
+- Concis mais complet (max 1500 caracteres sur WhatsApp)
+- Sympa, chaleureux, utilise des emojis de temps en temps
+- Si tu ne sais pas, dis-le honnetement et propose une alternative utile"""
 
 class AIModelRouter:
     def __init__(self):
         self.models = {}
         self.default_model = settings.ai_default_model
         
-        # Groq — FREE, fast, primary provider
+        # Groq — FREE, FAST, PRIMARY
         if settings.groq_api_key:
             try:
                 from openai import AsyncOpenAI
-                self.models["groq"] = AsyncOpenAI(
+                client = AsyncOpenAI(
                     api_key=settings.groq_api_key,
                     base_url="https://api.groq.com/openai/v1"
                 )
-                self.models["llama-3.1-70b-versatile"] = "groq"
-                self.models["mixtral-8x7b-32768"] = "groq"
-                self.models["gemma2-9b-it"] = "groq"
-                self.models["llama-3.1-8b-instant"] = "groq"
+                self.models["groq"] = client
                 self.models["llama-3.3-70b-versatile"] = "groq"
-                logger.info("Groq ready (Llama 3, Mixtral, Gemma — FREE)")
-            except Exception as e: logger.warning(f"Groq: {e}")
+                self.models["llama-3.1-8b-instant"] = "groq"
+                self.models["gemma2-9b-it"] = "groq"
+                self.models["qwen-qwq-32b"] = "groq"
+                logger.info("Groq ready (Llama 3.3 70B + 8B Instant + Gemma2)")
+            except Exception as e: logger.warning(f"Groq init: {e}")
         
-        # OpenAI — backup
+        # OpenAI — backup for image generation mainly
         if settings.openai_api_key:
             try:
                 from openai import AsyncOpenAI
                 self.models["openai"] = AsyncOpenAI(api_key=settings.openai_api_key)
                 self.models["gpt-4o"] = "openai"
                 self.models["gpt-4o-mini"] = "openai"
-                logger.info("OpenAI ready")
+                logger.info("OpenAI ready (backup)")
             except Exception as e: logger.warning(f"OpenAI: {e}")
         
         # Gemini
@@ -82,7 +77,7 @@ class AIModelRouter:
                 logger.info("DeepSeek ready")
             except Exception as e: logger.warning(f"DeepSeek: {e}")
         
-        # OpenRouter — 250+ models
+        # OpenRouter
         if settings.openrouter_api_key:
             try:
                 from openai import AsyncOpenAI
@@ -90,84 +85,96 @@ class AIModelRouter:
                 logger.info("OpenRouter ready")
             except Exception as e: logger.warning(f"OpenRouter: {e}")
 
-    def get_available_models(self) -> list:
-        return [k for k in self.models if k not in ("groq","openai","gemini","claude","deepseek","grok","openrouter")]
+    def get_available(self) -> list:
+        return [k for k in self.models if k not in ("groq","openai","gemini","claude","deepseek","openrouter")]
 
-    async def chat(self, prompt: str, model: str = "", system: str = "", max_tokens: int = 2048, temperature: float = 0.7) -> str:
+    async def chat(self, prompt: str, model: str = "", system: str = "", max_tokens: int = 2048, temperature: float = 0.9) -> str:
         model = model or self.default_model
-        model_key = self.models.get(model, "")
-        client = self.models.get(model_key)
+        tried = []
         
-        # Fallback chain: try Groq first, then others
-        if not client:
-            for m in ["llama-3.1-70b-versatile", "mixtral-8x7b-32768", "gpt-4o", "gemini-2.5-pro", "claude-4-sonnet", "deepseek-v3"]:
-                if m in self.models:
-                    model = m; model_key = self.models[m]; client = self.models.get(model_key); break
+        # Try all available models until one works
+        fallback_order = [
+            "llama-3.3-70b-versatile", "gemma2-9b-it", "llama-3.1-8b-instant",
+            "gpt-4o", "gpt-4o-mini", "claude-4-sonnet", "gemini-2.5-pro", "deepseek-v3"
+        ]
         
-        if not client:
-            return (
-                "Astra pa disponib pou kounye a. Nou travay sou yon solisyon. "
-                "Pandan w ap tann, ou ka mande meteyo (tan Potoprens), "
-                "fe tradiksyon (tradwi Hello|fr), oswa lot koman ki pa bezwen AI."
-            )
+        if model in self.models:
+            fallback_order.insert(0, model)
         
-        try:
-            if model_key in ("groq", "openai", "deepseek", "grok", "openrouter"):
-                resp = await client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": system or CHAT_SYSTEM},
-                        {"role": "user", "content": prompt}
-                    ],
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                )
-                return resp.choices[0].message.content
-                
-            elif model_key == "gemini":
-                resp = client.GenerativeModel(model_name="gemini-pro").generate_content(
-                    f"{system or CHAT_SYSTEM}\n\nUser: {prompt}"
-                )
-                return resp.text
-                
-            elif model_key == "claude":
-                resp = await client.messages.create(
-                    model="claude-4-sonnet-20250514",
-                    max_tokens=max_tokens,
-                    system=system or CHAT_SYSTEM,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                return resp.content[0].text
-                
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"AI error ({model}): {error_msg}")
+        last_error = ""
+        for m in fallback_order:
+            if m in tried: continue
+            model_key = self.models.get(m, "")
+            client = self.models.get(model_key)
+            if not client: continue
+            tried.append(m)
             
-            # Check for quota errors and try fallback
-            if "429" in error_msg or "quota" in error_msg or "insufficient" in error_msg:
-                fallback_models = ["mixtral-8x7b-32768", "gemma2-9b-it", "gpt-4o-mini", "deepseek-v3"]
-                current_idx = fallback_models.index(model) + 1 if model in fallback_models else 0
-                for m in fallback_models[current_idx:]:
-                    if m in self.models:
-                        logger.info(f"Falling back to {m}")
-                        return await self.chat(prompt=prompt, model=m, system=system, max_tokens=max_tokens, temperature=temperature)
-            
-            # Generic friendly error
-            return (
-                "Astra rankontre yon ti pwoblem teknik. Eseye anko nan kek segond... "
-                "Oswa itilize: tan [vil], tradwi [teks], rechèch [sije]"
-            )
+            try:
+                if model_key in ("groq", "openai", "deepseek", "openrouter"):
+                    resp = await client.chat.completions.create(
+                        model=m,
+                        messages=[
+                            {"role": "system", "content": system or SYSTEM},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                    )
+                    return resp.choices[0].message.content
+                        
+                elif model_key == "gemini":
+                    resp = client.GenerativeModel(model_name="gemini-pro").generate_content(
+                        f"{system or SYSTEM}\n\nUser: {prompt}"
+                    )
+                    return resp.text
+                        
+                elif model_key == "claude":
+                    resp = await client.messages.create(
+                        model="claude-4-sonnet-20250514",
+                        max_tokens=max_tokens,
+                        system=system or SYSTEM,
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    return resp.content[0].text
+                    
+            except Exception as e:
+                last_error = str(e)
+                logger.warning(f"Model {m} failed: {last_error[:100]}")
+                continue  # Try next model
+        
+        # All models failed
+        logger.error(f"All models failed. Last error: {last_error}")
+        return (
+            "Desole, tout sistem IA yo pa disponib pou kounye a.\n\n"
+            "Eseye koman sa yo pandan w ap tann:\n"
+            "tan [vil] -- Meteyo\n"
+            "tradwi [teks] -- Tradiksyon\n"
+            "rechèch [sije] -- Google Search\n\n"
+            "Nou travay pou rezoud pwoblem nan. Mersi pou pasyans ou!"
+        )
 
     async def generate_image(self, prompt: str, size: str = "1024x1024") -> str:
-        """Generate image — uses OpenAI if available."""
+        """Generate image -- tries free API first, then OpenAI."""
+        # Try pollinations.ai (free, no key needed)
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(
+                    "https://image.pollinations.ai/prompt/" + prompt.replace(" ", "%20"),
+                    params={"width": 1024, "height": 1024, "nologo": "true"}
+                )
+                if resp.status_code == 200 and resp.headers.get("content-type","").startswith("image/"):
+                    return str(resp.url)
+        except: pass
+        
+        # Fallback to OpenAI DALL-E
         if "openai" in self.models:
             try:
                 resp = await self.models["openai"].images.generate(
                     model="dall-e-3", prompt=prompt, size=size, n=1
                 )
                 return resp.data[0].url
-            except Exception as e:
-                logger.error(f"Image gen: {e}")
+            except Exception as e: logger.error(f"DALL-E: {e}")
         return ""
 
     def has_model(self, key: str) -> bool:
