@@ -35,7 +35,6 @@ def _extract_message(body: dict) -> dict | None:
             text = message_data.get("extendedTextMessageData", {}).get("text", "")
         elif msg_type in ("imageMessage", "videoMessage"):
             caption = message_data.get(f"{msg_type.replace('Message','')}MessageData", {}).get("caption", "")
-            file_url = message_data.get("downloadUrl", "")
             text = caption or "[media]"
         elif msg_type == "documentMessage":
             text = "[document]"
@@ -62,27 +61,24 @@ async def _handle_message(msg: dict) -> str:
     if not text:
         return ""
 
-    # Intent detection & routing
     intent = detect_intent(text)
     logger.info(f"Intent: {intent} | Text: {truncate(text, 100)}")
 
     if intent == "image":
         prompt = text.replace("imaj", "").replace("foto", "").replace("image", "").replace("jenere", "").strip()
-        result = await ai_image.generate(prompt)
-        img_url = result.get("url", "")
+        img_url = await ai_image.generate(prompt)
         if img_url:
-            caption = result.get("prompt_used", prompt)[:500]
-            await green_api.send_image(chat_id, img_url, caption)
-            return f"✨ Men imaj ou: {caption}"
-        return "⚠️ Jenere imaj bezwen OpenAI. Mwen ka ede w ake lòt bagay tou: eseye `rechèch [sijè]` oswa pale avè m!"
+            await green_api.send_image(chat_id, img_url, prompt[:500])
+            return f"🖼 Men imaj ou: \\"{prompt[:100]}...\\""
+        return "Men eseye jenere imaj la, men pa t ka. Eseye yon lòt deskripsyon oswa `foto [deskripsyon]`."
 
     elif intent == "search":
         query = text.replace("rechèch", "").replace("search", "").replace("google", "").strip()
         results = await ai_search.web_search(query)
         if results:
-            reply = "🔍 *Rezilta rechèch:*\n\n"
+            reply = "🔍 *Rezilta rechèchh:\n\n"
             for i, r in enumerate(results[:5], 1):
-                reply += f"{i}. *{r.get('title','')}*\n{r.get('snippet','')}\n\n"
+                reply += f"{i}. *{r.get('title','')}\n\n{r.get('snippet','')}\n\n"
             return reply
         return "Pa gen rezilta pou rechèch sa a."
 
@@ -96,7 +92,7 @@ async def _handle_message(msg: dict) -> str:
         return (
             f"🌤 *Meteyo {result.get('city','')}*\n"
             f"🌡 Tanperati: {result.get('temp','')}°\n"
-            f"💧 Imediti: {result.get('humidity','')}%\n"
+            f"💧 Imidite: {result.get('humidity','')}%\n"
             f"🌬 Van: {result.get('wind','')}\n"
             f"📋 {result.get('description','')}"
         )
@@ -110,7 +106,7 @@ async def _handle_message(msg: dict) -> str:
             txt = text.replace("tradwi", "").replace("translate", "").strip()
             target = "en"
         result = await translation.translate_text(txt, target)
-        return f"🌐 *Tradiksyon:*\n\n{result.get('translated','')}"
+        return f"🌐 *Tradiksyon:*\n{result.get('translated','')}"
 
     elif intent == "currency":
         return await currency.get_rates()
@@ -130,20 +126,20 @@ async def _handle_message(msg: dict) -> str:
 
     elif intent == "help":
         return (
-            "🤖 *Astra — Asistan AI sou WhatsApp*\n\n"
-            "💫 *Chat GPT-Style* — pale avè m pou nenpòt kesyon!\n"
-            "🖼 *Imaj* — `foto [deskripsyon]`\n"
-            "🔍 *Rechèch* — `rechèch [sijè]`\n"
-            "🌤 *Meteyo* — `tan [vil]`\n"
-            "🌐 *Tradiksyon* — `tradwi [tèks]|[lang]`\n"
-            "💰 *Lajan* — `to lajan`\n"
-            "📰 *Nouvèl* — `nouvèl`\n"
-            "🗣 *Vwa* — `vwa [tèks]`\n\n"
-            "✨ *www.astra-ai.com)"
+            "🤖 *Astra - Asistan AI sou WhatsApp*\n\n"
+            "💫 *Chat GPT-Style* - pale avèo m pou nenpòt kesyon!\n"
+            "🖼 *Imaj* - `foto [deskripsyon]`\n"
+            "🔍 *Rechèch* - `rechèch [sijè]`\n"
+            "🌤 *Meteyo* - `tan [vil]`\n"
+            "🌐 *Tradiksyon* - `tradwi [tèks]|[lang]`\n"
+            "💰 *Lajan* - `to lajan`\n"
+            "📰 *Nouvèl* - `nouvèl`\n"
+            "🗣 *Vwa* - `vwa [tèks]`\n\n"
+            "😩 *Suport: * +50955188480"
         )
 
     else:
-        # Default: AI Chat (like ChatGPT!)
+        # Default: Aller avec Chat IA ChatGPT-style
         reply = await ai_chat.chat_reply(text, chat_id)
         if reply:
             return truncate(reply, 4000)
@@ -152,13 +148,11 @@ async def _handle_message(msg: dict) -> str:
 
 @router.get("")
 async def health_check():
-    """Simple health endpoint for webhook testing."""
-    return {"status": "ok", "service": "Astra WhatsApp AI + Groq"}
+    return {"status": "ok", "service": "Astra + Groq (LL.3 70B)"}
 
 
 @router.post("")
 async def receive(request: Request):
-    """Receive incoming webhook notifications from Green API."""
     try:
         raw_body = await request.json()
         webhook_body = raw_body.get("body", raw_body)
